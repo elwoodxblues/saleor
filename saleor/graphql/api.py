@@ -1,6 +1,5 @@
 import graphene
 import graphql_jwt
-from graphene_django.filter import DjangoFilterConnectionField
 from graphql_jwt.decorators import login_required, permission_required
 
 from .account.mutations import (
@@ -8,6 +7,7 @@ from .account.mutations import (
     StaffUpdate, AddressCreate, AddressUpdate, AddressDelete)
 from .account.resolvers import resolve_users
 from .account.types import User
+from .core.connection import CursorConnectionField
 from .menu.resolvers import resolve_menu, resolve_menus, resolve_menu_items
 from .menu.types import Menu, MenuItem
 # FIXME: sorting import by putting below line at the beginning breaks app
@@ -20,9 +20,7 @@ from .discount.types import Sale, Voucher
 from .discount.mutations import (
     SaleCreate, SaleDelete, SaleUpdate, VoucherCreate, VoucherDelete,
     VoucherUpdate)
-from .core.filters import DistinctFilterSet
 from .core.mutations import CreateToken, VerifyToken
-from .order.filters import OrderFilter
 from .order.resolvers import resolve_order, resolve_orders
 from .order.types import Order
 from .order.mutations.draft_orders import (
@@ -35,7 +33,6 @@ from .order.mutations.orders import (
 from .page.resolvers import resolve_pages, resolve_page
 from .page.types import Page
 from .page.mutations import PageCreate, PageDelete, PageUpdate
-from .product.filters import ProductFilterSet
 from .product.mutations.attributes import (
     AttributeChoiceValueCreate, AttributeChoiceValueDelete,
     AttributeChoiceValueUpdate, ProductAttributeCreate, ProductAttributeDelete,
@@ -67,14 +64,13 @@ from .shop.mutations import (
 
 
 class Query(graphene.ObjectType):
-    attributes = DjangoFilterConnectionField(
-        ProductAttribute, filterset_class=DistinctFilterSet,
+    attributes = CursorConnectionField(
+        ProductAttribute,
         query=graphene.String(description=DESCRIPTIONS['attributes']),
         in_category=graphene.Argument(graphene.ID),
         description='List of the shop\'s product attributes.')
-    categories = DjangoFilterConnectionField(
-        Category, filterset_class=DistinctFilterSet, query=graphene.String(
-            description=DESCRIPTIONS['category']),
+    categories = CursorConnectionField(
+        Category, query=graphene.String(description=DESCRIPTIONS['category']),
         level=graphene.Argument(graphene.Int),
         description='List of the shop\'s categories.')
     category = graphene.Field(
@@ -83,7 +79,7 @@ class Query(graphene.ObjectType):
     collection = graphene.Field(
         Collection, id=graphene.Argument(graphene.ID),
         description='Lookup a collection by ID.')
-    collections = DjangoFilterConnectionField(
+    collections = CursorConnectionField(
         Collection, query=graphene.String(
             description=DESCRIPTIONS['collection']),
         description='List of the shop\'s collections.')
@@ -91,70 +87,65 @@ class Query(graphene.ObjectType):
         Menu, id=graphene.Argument(graphene.ID),
         name=graphene.Argument(graphene.String, description="Menu name."),
         description='Lookup a menu by ID or name.')
-    menus = DjangoFilterConnectionField(
+    menus = CursorConnectionField(
         Menu, query=graphene.String(description=DESCRIPTIONS['menu']),
         description="List of the shop\'s menus.")
     menu_item = graphene.Field(
         MenuItem, id=graphene.Argument(graphene.ID),
         description='Lookup a menu item by ID.')
-    menu_items = DjangoFilterConnectionField(
+    menu_items = CursorConnectionField(
         MenuItem, query=graphene.String(description=DESCRIPTIONS['menu_item']),
         description='List of the shop\'s menu items.')
     order = graphene.Field(
         Order, description='Lookup an order by ID.',
         id=graphene.Argument(graphene.ID))
-    orders = DjangoFilterConnectionField(
-        Order, filterset_class=OrderFilter, query=graphene.String(
-            description=DESCRIPTIONS['order']),
+    orders = CursorConnectionField(
+        Order, query=graphene.String(description=DESCRIPTIONS['order']),
         description='List of the shop\'s orders.')
     page = graphene.Field(
         Page, id=graphene.Argument(graphene.ID), slug=graphene.String(),
         description='Lookup a page by ID or by slug.')
-    pages = DjangoFilterConnectionField(
-        Page, filterset_class=DistinctFilterSet, query=graphene.String(
-            description=DESCRIPTIONS['page']),
+    pages = CursorConnectionField(
+        Page, query=graphene.String(description=DESCRIPTIONS['page']),
         description='List of the shop\'s pages.')
     product = graphene.Field(
         Product, id=graphene.Argument(graphene.ID),
         description='Lookup a product by ID.')
-    products = DjangoFilterConnectionField(
-        Product, filterset_class=ProductFilterSet, query=graphene.String(
-            description=DESCRIPTIONS['product']),
+    products = CursorConnectionField(
+        Product, query=graphene.String(description=DESCRIPTIONS['product']),
         description='List of the shop\'s products.')
     product_type = graphene.Field(
         ProductType, id=graphene.Argument(graphene.ID),
         description='Lookup a product type by ID.')
-    product_types = DjangoFilterConnectionField(
-        ProductType, filterset_class=DistinctFilterSet,
-        description='List of the shop\'s product types.')
+    product_types = CursorConnectionField(
+        ProductType, description='List of the shop\'s product types.')
     product_variant = graphene.Field(
         ProductVariant, id=graphene.Argument(graphene.ID),
         description='Lookup a variant by ID.')
     sale = graphene.Field(
         Sale, id=graphene.Argument(graphene.ID),
         description='Lookup a sale by ID.')
-    sales = DjangoFilterConnectionField(
+    sales = CursorConnectionField(
         Sale, query=graphene.String(description=DESCRIPTIONS['sale']),
         description="List of the shop\'s sales.")
     shop = graphene.Field(Shop, description='Represents a shop resources.')
     voucher = graphene.Field(
         Voucher, id=graphene.Argument(graphene.ID),
         description='Lookup a voucher by ID.')
-    vouchers = DjangoFilterConnectionField(
+    vouchers = CursorConnectionField(
         Voucher, query=graphene.String(description=DESCRIPTIONS['product']),
         description="List of the shop\'s vouchers.")
     shipping_zone = graphene.Field(
         ShippingZone, id=graphene.Argument(graphene.ID),
         description='Lookup a shipping zone by ID.')
-    shipping_zones = DjangoFilterConnectionField(
+    shipping_zones = CursorConnectionField(
         ShippingZone, description='List of the shop\'s shipping zones.')
     user = graphene.Field(
         User, id=graphene.Argument(graphene.ID),
         description='Lookup an user by ID.')
-    users = DjangoFilterConnectionField(
+    users = CursorConnectionField(
         User, description='List of the shop\'s users.',
-        query=graphene.String(
-            description=DESCRIPTIONS['user']))
+        query=graphene.String(description=DESCRIPTIONS['user']))
     node = graphene.Node.Field()
 
     def resolve_attributes(self, info, in_category=None, query=None, **kwargs):

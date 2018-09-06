@@ -49,29 +49,3 @@ class ProductAttributeFilter(Filter):
         query = functools.reduce(operator.and_, combine_and)
         qs = self.get_method(qs)(query)
         return qs.distinct() if self.distinct else qs
-
-
-class ProductFilterSet(DistinctFilterSet):
-    sort_by = OrderingFilter(
-        fields=SORT_BY_FIELDS.keys(), field_labels=SORT_BY_FIELDS)
-
-    class Meta:
-        model = Product
-        fields = {
-            'category': ['exact'],
-            'price': ['exact', 'range', 'lte', 'gte'],
-            'attributes': ['exact'],
-            'name': ['exact', 'icontains'],
-            'product_type__name': ['exact'],
-            'is_published': ['exact']}
-
-    @classmethod
-    def filter_for_field(cls, f, field_name, lookup_expr='exact'):
-        if field_name == 'attributes':
-            return ProductAttributeFilter(
-                field_name=field_name, lookup_expr=lookup_expr, distinct=True)
-        # this class method is called during class construction so we can't
-        # reference ProductFilterSet here yet
-        # pylint: disable=E1003
-        return super(DistinctFilterSet, cls).filter_for_field(
-            f, field_name, lookup_expr)

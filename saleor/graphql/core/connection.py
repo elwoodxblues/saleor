@@ -1,6 +1,9 @@
 import graphene
 from graphene import Field, List, NonNull, ObjectType, String
-from graphene.relay.connection import Connection, ConnectionOptions
+from graphene_django import DjangoConnectionField
+from graphene.relay.connection import Connection, PageInfo
+
+from cursor_pagination import CursorPaginator
 
 
 class NonNullConnection(Connection):
@@ -41,3 +44,43 @@ class CountableConnection(NonNullConnection):
     @staticmethod
     def resolve_total_count(root, info, *args, **kwargs):
         return root.length
+
+
+class CursorConnectionField(DjangoConnectionField):
+
+    @classmethod
+    def resolve_connection(cls, connection, default_manager, args, iterable):
+        if iterable is None:
+            iterable = default_manager
+        connection = cursor_pagination_connection(
+            iterable, args, connection_type=connection,
+            edge_type=connection.Edge, pageinfo_type=PageInfo)
+        return connection
+
+
+def cursor_pagination_connection(
+        qs, args, connection_type, edge_type, pageinfo_type):
+    args = args or {}
+
+    before = args.get('before')
+    after = args.get('after')
+    first = args.get('first')
+    last = args.get('last')
+
+    paginator = CursorPaginator(qs, ordering=('pk',))
+    page = paginator.page(first, last, after, before)
+
+    edges = [
+        edge_type(node=node, cursor=paginator.cursor(node)) for node in page]
+
+    first_edge_cursor = edges[0].cursor if edges else None
+    last_edge_cursor = edges[-1].cursor if edges else None
+
+    connection = connection_type(
+        edges=edges,
+        page_info=pageinfo_type(
+            start_cursor=first_edge_cursor,
+            end_cursor=last_edge_cursor,
+            has_previous_page=page.has_previous,
+            has_next_page=page.has_next))
+    return connection

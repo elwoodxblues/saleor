@@ -11,7 +11,6 @@ class Menu(CountableDjangoObjectType):
         to help navigate through the store."""
         interfaces = [relay.Node]
         exclude_fields = ['json_content']
-        filter_fields = {}
         model = models.Menu
 
     def resolve_items(self, info):
@@ -26,7 +25,6 @@ class MenuItem(CountableDjangoObjectType):
         Can store categories, collection or pages."""
         interfaces = [relay.Node]
         only_fields = ['children', 'id', 'menu', 'name', 'url']
-        filter_fields = {}
         model = models.MenuItem
 
     def resolve_url(self, info):

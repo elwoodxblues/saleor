@@ -23,10 +23,6 @@ class ShippingZone(CountableDjangoObjectType):
         description = 'Represents a shipping zone in the shop.'
         model = models.ShippingZone
         interfaces = [relay.Node]
-        filter_fields = {
-            'name': ['icontains'],
-            'countries': ['icontains'],
-            'shipping_methods__price': ['gte', 'lte']}
 
     def resolve_price_range(self, info):
         return self.price_range
