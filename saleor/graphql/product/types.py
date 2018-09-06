@@ -1,8 +1,8 @@
 import re
 
 import graphene
+import graphene_django_optimizer as gql_optimizer
 from graphene import relay
-from graphene_django.filter import DjangoFilterConnectionField
 from graphql.error import GraphQLError
 
 from ...product import models
@@ -11,12 +11,12 @@ from ...product.utils import products_with_details
 from ...product.utils.availability import get_availability
 from ...product.utils.costs import (
     get_margin_for_variant, get_product_costs_data)
+from ..core.connection import CursorConnectionField
 from ..core.decorators import permission_required
 from ..core.types.common import CountableDjangoObjectType
 from ..core.types.money import (
     Money, MoneyRange, TaxedMoney, TaxedMoneyRange, TaxRateType)
 from ..utils import get_database_id
-from .filters import ProductFilterSet
 
 COLOR_PATTERN = r'^(#[0-9a-fA-F]{3}|#(?:[0-9a-fA-F]{2}){2,4}|(rgb|hsl)a?\((-?\d+%?[,\s]+){2,3}\s*[\d\.]+%?\))$'  # noqa
 color_pattern = re.compile(COLOR_PATTERN)
@@ -85,7 +85,6 @@ class ProductAttribute(CountableDjangoObjectType):
         assigned to products and variants at the product type level."""
         exclude_fields = ['product_types', 'product_variant_types']
         interfaces = [relay.Node]
-        filter_fields = ['id', 'slug']
         model = models.ProductAttribute
 
     def resolve_values(self, info):
@@ -203,6 +202,8 @@ class Product(CountableDjangoObjectType):
         id=graphene.Argument(
             graphene.ID, description='ID of a product image.'),
         description='Get a single product image by ID')
+    variants = gql_optimizer.field(
+        CursorConnectionField(ProductVariant), model_field='variants')
 
     class Meta:
         description = """Represents an individual item for sale in the
@@ -247,11 +248,14 @@ class Product(CountableDjangoObjectType):
         except models.ProductImage.DoesNotExist:
             raise GraphQLError('Product image not found.')
 
+    @gql_optimizer.resolver_hints(model_field='variants')
+    def resolve_variants(self, info, **kwargs):
+        return self.variants.all()
+
 
 class ProductType(CountableDjangoObjectType):
-    products = DjangoFilterConnectionField(
+    products = CursorConnectionField(
         Product,
-        filterset_class=ProductFilterSet,
         description='List of products of this type.')
     tax_rate = TaxRateType(description='A type of tax rate.')
 
@@ -265,42 +269,35 @@ class ProductType(CountableDjangoObjectType):
     def resolve_products(self, info, **kwargs):
         user = info.context.user
         return products_with_details(
-            user=user).filter(product_type=self).distinct()
+            user=user).filter(product_type=self)
 
 
 class Collection(CountableDjangoObjectType):
-    products = DjangoFilterConnectionField(
-        Product, filterset_class=ProductFilterSet,
-        description='List of collection products.')
+    products = CursorConnectionField(
+        Product, description='List of collection products.')
     background_image = graphene.Field(Image)
 
     class Meta:
         description = "Represents a collection of products."
         exclude_fields = ['voucher_set', 'sale_set', 'menuitem_set']
-        filter_fields = {
-            'name': ['exact', 'icontains', 'istartswith']}
         interfaces = [relay.Node]
         model = models.Collection
 
     def resolve_products(self, info, **kwargs):
         user = info.context.user
         return products_with_details(
-            user=user).filter(collections=self).distinct()
+            user=user).filter(collections=self)
 
 
 class Category(CountableDjangoObjectType):
-    products = DjangoFilterConnectionField(
-        Product,
-        filterset_class=ProductFilterSet,
-        description='List of products in the category.')
+    products = CursorConnectionField(
+        Product, description='List of products in the category.')
     url = graphene.String(
         description='The storefront\'s URL for the category.')
-    ancestors = DjangoFilterConnectionField(
-        lambda: Category,
-        description='List of ancestors of the category.')
-    children = DjangoFilterConnectionField(
-        lambda: Category,
-        description='List of children of the category.')
+    ancestors = CursorConnectionField(
+        lambda: Category, description='List of ancestors of the category.')
+    children = CursorConnectionField(
+        lambda: Category, description='List of children of the category.')
     background_image = graphene.Field(Image)
 
     class Meta:
@@ -311,22 +308,20 @@ class Category(CountableDjangoObjectType):
             'lft', 'rght', 'tree_id', 'voucher_set', 'sale_set',
             'menuitem_set']
         interfaces = [relay.Node]
-        filter_fields = ['id', 'name']
         model = models.Category
 
     def resolve_ancestors(self, info, **kwargs):
-        return self.get_ancestors().distinct()
+        return self.get_ancestors().all()
 
     def resolve_children(self, info, **kwargs):
-        return self.children.distinct()
+        return self.children.all()
 
     def resolve_url(self, info):
         return self.get_absolute_url()
 
     def resolve_products(self, info, **kwargs):
         qs = models.Product.objects.available_products()
-        qs = qs.filter(category=self)
-        return qs.distinct()
+        return qs.filter(category=self)
 
 
 class ProductImage(CountableDjangoObjectType):

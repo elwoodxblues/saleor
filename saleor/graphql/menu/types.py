@@ -11,7 +11,6 @@ class Menu(CountableDjangoObjectType):
         to help navigate through the store."""
         interfaces = [relay.Node]
         exclude_fields = ['json_content']
-        filter_fields = {}
         model = models.Menu
 
     def resolve_items(self, info, **kwargs):
@@ -26,6 +25,5 @@ class MenuItem(CountableDjangoObjectType):
         description = """Represents a single item of the related menu.
         Can store categories, collection or pages."""
         interfaces = [relay.Node]
-        exclude_fields = ['sort_order', 'lft', 'rght', 'tree_id']
-        filter_fields = {}
+        only_fields = ['children', 'id', 'menu', 'name', 'url']
         model = models.MenuItem

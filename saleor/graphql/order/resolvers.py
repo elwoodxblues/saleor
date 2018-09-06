@@ -16,7 +16,7 @@ def resolve_orders(info, query):
     else:
         qs = user.orders.confirmed()
     qs = filter_by_query_param(qs, query, ORDER_SEARCH_FIELDS)
-    return qs.prefetch_related('lines').distinct()
+    return qs.prefetch_related('lines')
 
 
 def resolve_order(info, id):
