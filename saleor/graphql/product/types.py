@@ -204,6 +204,8 @@ class Product(CountableDjangoObjectType):
         description='Get a single product image by ID')
     variants = gql_optimizer.field(
         CursorConnectionField(ProductVariant), model_field='variants')
+    images = gql_optimizer.field(
+        CursorConnectionField(lambda: ProductImage), model_field='images')
 
     class Meta:
         description = """Represents an individual item for sale in the
@@ -211,6 +213,7 @@ class Product(CountableDjangoObjectType):
         interfaces = [relay.Node]
         model = models.Product
 
+    @gql_optimizer.resolver_hints(prefetch_related='images')
     def resolve_thumbnail_url(self, info, *, size=None):
         if not size:
             size = 255
@@ -219,6 +222,7 @@ class Product(CountableDjangoObjectType):
     def resolve_url(self, info):
         return self.get_absolute_url()
 
+    @gql_optimizer.resolver_hints(prefetch_related='variants', only=['available_on', 'charge_taxes', 'tax_rate'])
     def resolve_availability(self, info):
         context = info.context
         availability = get_availability(
@@ -248,9 +252,17 @@ class Product(CountableDjangoObjectType):
         except models.ProductImage.DoesNotExist:
             raise GraphQLError('Product image not found.')
 
+    @gql_optimizer.resolver_hints(model_field='images')
+    def resolve_variants(self, info, **kwargs):
+        return self.images.all()
+
     @gql_optimizer.resolver_hints(model_field='variants')
     def resolve_variants(self, info, **kwargs):
         return self.variants.all()
+
+    @gql_optimizer.resolver_hints(prefetch_related='product_type')
+    def resolve_product_type(self, info, **kwargs):
+        return self.product_type
 
 
 class ProductType(CountableDjangoObjectType):
