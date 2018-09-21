@@ -3,7 +3,8 @@ from graphene import Field, List, NonNull, ObjectType, String
 from graphene_django import DjangoConnectionField
 from graphene.relay.connection import Connection, PageInfo
 
-from cursor_pagination import CursorPaginator
+# from cursor_pagination import CursorPaginator
+from graphql_relay.connection.arrayconnection import connection_from_list_slice
 
 
 class NonNullConnection(Connection):
@@ -52,35 +53,58 @@ class CursorConnectionField(DjangoConnectionField):
     def resolve_connection(cls, connection, default_manager, args, iterable):
         if iterable is None:
             iterable = default_manager
-        connection = cursor_pagination_connection(
-            iterable, args, connection_type=connection,
-            edge_type=connection.Edge, pageinfo_type=PageInfo)
+
+        # if isinstance(iterable, QuerySet):
+        #     if iterable is not default_manager:
+        #         default_queryset = maybe_queryset(default_manager)
+        #         iterable = cls.merge_querysets(default_queryset, iterable)
+        #     _len = iterable.count()
+        # else:
+        #     _len = len(iterable)
+        _len = iterable.count()
+        connection = connection_from_list_slice(
+            iterable,
+            args,
+            slice_start=0,
+            list_length=_len,
+            list_slice_length=_len,
+            connection_type=connection,
+            edge_type=connection.Edge,
+            pageinfo_type=PageInfo,
+        )
+        connection.iterable = iterable
+        connection.length = _len
         return connection
 
+        # connection = cursor_pagination_connection(
+        #     iterable, args, connection_type=connection,
+        #     edge_type=connection.Edge, pageinfo_type=PageInfo)
+        # return connection
 
-def cursor_pagination_connection(
-        qs, args, connection_type, edge_type, pageinfo_type):
-    args = args or {}
 
-    before = args.get('before')
-    after = args.get('after')
-    first = args.get('first')
-    last = args.get('last')
+# def cursor_pagination_connection(
+#         qs, args, connection_type, edge_type, pageinfo_type):
+#     args = args or {}
 
-    paginator = CursorPaginator(qs, ordering=('pk',))
-    page = paginator.page(first, last, after, before)
+#     before = args.get('before')
+#     after = args.get('after')
+#     first = args.get('first')
+#     last = args.get('last')
 
-    edges = [
-        edge_type(node=node, cursor=paginator.cursor(node)) for node in page]
+#     paginator = CursorPaginator(qs, ordering=('pk',))
+#     page = paginator.page(first, last, after, before)
 
-    first_edge_cursor = edges[0].cursor if edges else None
-    last_edge_cursor = edges[-1].cursor if edges else None
+#     edges = [
+#         edge_type(node=node, cursor=paginator.cursor(node)) for node in page]
 
-    connection = connection_type(
-        edges=edges,
-        page_info=pageinfo_type(
-            start_cursor=first_edge_cursor,
-            end_cursor=last_edge_cursor,
-            has_previous_page=page.has_previous,
-            has_next_page=page.has_next))
-    return connection
+#     first_edge_cursor = edges[0].cursor if edges else None
+#     last_edge_cursor = edges[-1].cursor if edges else None
+
+#     connection = connection_type(
+#         edges=edges,
+#         page_info=pageinfo_type(
+#             start_cursor=first_edge_cursor,
+#             end_cursor=last_edge_cursor,
+#             has_previous_page=page.has_previous,
+#             has_next_page=page.has_next))
+#     return connection

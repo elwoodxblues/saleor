@@ -544,6 +544,6 @@ SERIALIZATION_MODULES = {
     'json': 'saleor.core.utils.json_serializer'}
 
 
-GRAPHENE = {
-    'RELAY_CONNECTION_ENFORCE_FIRST_OR_LAST': True
-}
+# GRAPHENE = {
+#     'RELAY_CONNECTION_ENFORCE_FIRST_OR_LAST': True
+# }

@@ -128,7 +128,7 @@ class Query(graphene.ObjectType):
     product_variant = graphene.Field(
         ProductVariant, id=graphene.Argument(graphene.ID),
         description='Lookup a variant by ID.')
-    product_variants = DjangoFilterConnectionField(
+    product_variants = CursorConnectionField(
         ProductVariant, ids=graphene.List(graphene.ID),
         description='Lookup multiple variants by ID')
     sale = graphene.Field(
